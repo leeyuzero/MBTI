@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>MBTI 性格测试（16种人格）</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { font-family: "Microsoft YaHei", Arial, sans-serif; background: #f0f2f5; margin:0; padding:20px; color:#333; }
+  .container { max-width: 800px; margin: auto; background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); overflow: hidden; }
+  header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 40px 20px; text-align: center; }
+  h1 { margin:0; font-size: 2.5em; }
+  .progress { height:8px; background:#eee; margin:20px 0; border-radius:4px; overflow:hidden; }
+  .progress-bar { width:0%; height:100%; background:#7c4dff; transition:width 0.4s; }
+  .question { padding:30px; min-height:300px; display:none; }
+  .question.active { display:block; }
+  .q-text { font-size:1.4em; margin-bottom:30px; line-height:1.6; }
+  .options { display:flex; flex-direction:column; gap:15px; }
+  .option {
+    padding:18px 24px; background:#f8f9fa; border-radius:12px; cursor:pointer;
+    transition:all 0.3s; border:2px solid transparent; font-size:1.1em;
+  }
+  .option:hover { background:#e9ecef; transform:translateY(-2px); }
+  .option.selected { border-color:#7c4dff; background:#e8f0fe; }
+  .btn { padding:12px 30px; background:#7c4dff; color:white; border:none; border-radius:50px; cursor:pointer; font-size:1.1em; margin-top:30px; }
+  .btn:hover { background:#5e35b1; }
+  .result { padding:40px; text-align:center; display:none; }
+  .type { font-size:3em; font-weight:bold; color:#7c4dff; margin:20px 0; }
+  .desc { font-size:1.2em; line-height:1.8; margin:30px 0; }
+  .traits { text-align:left; background:#f8f9fa; padding:20px; border-radius:12px; margin:20px auto; max-width:600px; }
+  footer { text-align:center; padding:20px; color:#999; font-size:0.9em; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>MBTI 性格测试</h1>
+    <p>共 60 题，大约 5-8 分钟完成</p>
+    <div class="progress"><div class="progress-bar" id="progress"></div></div>
+  </header>
+
+  <div id="questions">
+    <!-- 问题会通过 JS 动态生成 -->
+  </div>
+
+  <div class="result" id="result">
+    <h2>你的 MBTI 类型是：</h2>
+    <div class="type" id="mbti-type"></div>
+    <div class="desc" id="mbti-desc"></div>
+    <div class="traits" id="mbti-traits"></div>
+    <button class="btn" onclick="location.reload()">重新测试</button>
+  </div>
+</div>
+
+<script>
+// === 问题库（60题，覆盖 E/I、S/N、T/F、J/P 四个维度）===
+const questions = [
+  // E/I（外向/内向） 15题
+  {q:"在派对上，你通常是", a:"主动和很多人聊天", b:"只和熟人聊天，或安静待着", dim:"EI"},
+  {q:"周末你更喜欢", a:"和朋友出去玩", b:"一个人宅在家", dim:"EI"},
+  {q:"你精力来源主要是", a:"与他人互动", b:"独处思考", dim:"EI"},
+  {q:"第一次见面时，你通常", a:"很容易打开话匣子", b:"比较安静，等别人先开口", dim:"EI"},
+  {q:"你更喜欢", a:"热闹的群体活动", b:"小圈子或一对一交流", dim:"EI"},
+  {q:"工作时你更倾向于", a:"边做边和同事聊", b:"戴耳机专注自己", dim:"EI"},
+  {q:"你更享受", a:"认识新朋友的过程", b:"和老朋友深度相处", dim:"EI"},
+  {q:"打电话还是发消息？", a:"直接打电话", b:"尽量发消息", dim:"EI"},
+  {q:"聚会结束你会觉得", a:"充满能量", b:"非常疲惫，需要独处恢复", dim:"EI"},
+  {q:"你更倾向于", a:"想到什么就说什么", b:"先想好再开口", dim:"EI"},
+  {q:"闲暇时你更想", a:"找人一起玩", b:"自己看书/刷剧/发呆", dim:"EI"},
+  {q:"在咖啡馆你更可能", a:"和旁边的人搭话", b:"戴耳机不被打扰", dim:"EI"},
+  {q:"你更喜欢的工作环境是", a:"开放式办公室，大家随时交流", b:"独立空间或远程办公", dim:"EI"},
+  {q:"分享生活时你会", a:"恨不得告诉所有人", b:"只和极少数亲近的人说", dim:"EI"},
+  {q:"面对新环境，你通常", a:"很快就能融入", b:"需要时间观察和适应", dim:"EI"},
+
+  // S/N（实感/直觉） 15题
+  {q:"你更关注", a:"眼前的现实和细节", b:"未来的可能性和整体概念", dim:"SN"},
+  {q:"做事时你更相信", a:"自己的经验和事实", b:"灵感和想象", dim:"SN"},
+  {q:"你更喜欢讨论", a:"具体可操作的事情", b:"抽象的理论和想法", dim:"SN"},
+  {q:"记忆时你更记得", a:"清晰的具体细节", b:"整体印象和感觉", dim:"SN"},
+  {q:"阅读时你更喜欢", a:"真实故事、传记、实用书", b:"科幻、哲学、象征性作品", dim:"SN"},
+  {q:"你更倾向于", a:"一步步按部就班", b:"跳跃式思考，突发奇想", dim:"SN"},
+  {q:"别人说你", a:"很务实", b:"很有创意/爱做白日梦", dim:"SN"},
+  {q:"面对问题你先想", a:"已经发生过什么", b:"可能会发生什么", dim:"SN"},
+  {q:"你更喜欢的工作是", a:"处理具体数据和流程", b:"头脑风暴和创新设计", dim:"SN"},
+  {q:"聊天时你更爱聊", a:"最近发生了什么实事", b:"如果…会怎样（假设性话题）", dim:"SN"},
+  {q:"学新东西时你更想知道", a:"具体怎么操作", b:"背后的原理和意义", dim:"SN"},
+  {q:"你更擅长", a:"注意细节，避免出错", b:"看到整体格局和趋势", dim:"SN"},
+  {q:"假期你更想", a:"去熟悉的地方放松", b:"去没去过的地方冒险", dim:"SN"},
+  {q:"你买东西主要看", a:"实用性和性价比", b:"是否独特、有设计感", dim:"SN"},
+  {q:"别人找你帮忙，你更擅长给", a:"实际可行的建议", b:"新颖独特的点子", dim:"SN"},
+
+  // T/F（思考/情感） 15题
+  {q:"做决定时你更看重", a:"逻辑和客观真相", b:"人的感受和价值观", dim:"TF"},
+  {q:"批评别人时你", a:"直说问题在哪里", b:"先顾及对方感受", dim:"TF"},
+  {q:"你更难以接受", a:"逻辑不通", b:"冷漠无情", dim:"TF"},
+  {q:"冲突发生时你更想", a:"尽快用道理解决问题", b:"先让大家情绪平静", dim:"TF"},
+  {q:"别人求助时你更会", a:"分析利弊给出最佳方案", b:"先安慰和共情", dim:"TF"},
+  {q:"你更相信", a:"公平比和谐更重要", b:"和谐比冷冰冰的公平更重要", dim:"TF"},
+  {q:"评价别人时你更先看到", a:"能力与缺点", b:"动机和努力", dim:"TF"},
+  {q:"朋友做错事你会", a:"直接指出错误", b:"委婉提醒，怕伤感情", dim:"TF"},
+  {q:"你更擅长", a:"冷静分析", b:"感知他人情绪", dim:"TF"},
+  {q:"辩论时你更享受", a:"用事实和逻辑赢得胜利", b:"大家都能被理解和尊重", dim:"TF"},
+  {q:"被误解时你更在意", a:"事实被歪曲", b:"别人对你有不好的印象", dim:"TF"},
+  {q:"团队合作时你更在意", a:"效率和结果", b:"氛围和每个人感受", dim:"TF"},
+  {q:"你更可能因为说真话而", a:"得罪人也不后悔", b:"后悔让对方难堪", dim:"TF"},
+  {q:"选择职业时你更看重", a:"薪资和发展前景", b:"是否符合个人价值观", dim:"TF"},
+  {q:"看到别人成功你首先想", a:"他是怎么做到的（分析）", b:"真替他开心（共情）", dim:"TF"},
+
+  // J/P（判断/感知） 15题
+  {q:"你的生活状态更接近", a:"有计划、有条理", b:"随性、灵活", dim:"JP"},
+  {q:"截止日期前你通常", a:"提前很久完成", b:"最后一刻才冲刺", dim:"JP"},
+  {q:"你的房间/桌面", a:"整齐有序", b:"创意混乱", dim:"JP"},
+  {q:"面对选择你更", a:"尽快决定", b:"多看看有无更好选项", dim:"JP"},
+  {q:"旅行你更喜欢", a:"行程安排得满满的", b:"走到哪儿算哪儿", dim:"JP"},
+  {q:"你更讨厌", a:"计划被打乱", b:"被过度约束", dim:"JP"},
+  {q:"工作时你更倾向", a:"先列清单按顺序做", b:"心情来了再做感兴趣的部分", dim:"JP"},
+  {q:"你更享受", a:"完成任务的成就感", b:"开始新项目的兴奋感", dim:"JP"},
+  {q:"购物时你", a:"列好清单买齐就走", b:"随便逛逛经常有惊喜收获", dim:"JP"},
+  {q:"对规则你态度是", a:"遵守规则更有效率", b:"规则是死的，人是活的", dim:"JP"},
+  {q:"周末计划通常是", a:"提前定好要做什么", b:"睡醒再说", dim:"JP"},
+  {q:"你更喜欢的生活节奏", a:"稳定可预测", b:"多变有惊喜", dim:"JP"},
+  {q:"任务多时你会", a:"按优先级一件件完成", b:"哪件感兴趣先做哪件", dim:"JP"},
+  {q:"你更倾向于", a:"一次只专注一件事", b:"多线程同时进行", dim:"JP"},
+  {q:"对“最后期限”你的真实感受是", a:"非常有用，能逼我完成", b:"非常讨厌，压力山大", dim:"JP"},
+];
+
+const types = {
+  "INTJ": {name:"建筑师", desc:"理性、独立、战略性思考者，有极强的逻辑能力和长远规划能力。", traits:"独立、理性、高标准、追求完美、擅战略"},
+  "INTP": {name:"逻辑学家", desc:"热爱探索理论和原理，思维灵活，极具创造力。", traits:"好奇、分析力强、抽象思考、独立、常走神"},
+  "ENTJ": {name:"指挥官", desc:"天生的领导者，果断、有野心、擅长组织和实现目标。", traits:"自信、领导力、效率高、直率、目标导向"},
+  "ENTP": {name:"辩论家", desc:"机智、反应快、脑洞大开，喜欢挑战传统观点。", traits:"聪明、口才好、创意多、容易厌倦、爱辩论"},
+  "INFJ": {name:"倡导者", desc:"理想主义者，有极强的洞察力和同理心，追求意义与和谐。", traits:"理想主义、深度、富有洞察、使命感、完美主义"},
+  "INFP": {name:"调停者", desc:"温柔、富有同情心、追求内在和谐与真实自我。", traits:"理想主义、创意、共情力强、敏感、拖延症"},
+  "ENFJ": {name:"主人公", desc:"富有魅力和领导力，擅长激励他人，实现共同愿景。", traits:"温暖、领导力、共情、善于表达、责任感强"},
+  "ENFP": {name:"竞选者", desc:"热情、创意爆棚、充满可能性，讨厌常规。", traits:"热情、创意、社交达人、自由散漫、情绪化"},
+  "ISTJ": {name:"物流师", desc:"认真负责、注重细节、信守承诺，社会支柱型人格。", traits:"责任心、踏实、注重规则、传统、讨厌变化"},
+  "ISFJ": {name:"守护者", desc:"温柔体贴、乐于助人、极其忠诚和耐心。", traits:"细心、奉献、记忆力好、谦逊、害怕冲突"},
+  "ESTJ": {name:"执行官", desc:"务实、效率高、擅长管理，天然的组织者。", traits:"务实、果断、领导力、传统、直接"},
+  "ESFJ": {name:"领事", desc:"热情、受欢迎、重视和谐，社交场合的粘合剂。", traits:"热情、照顾型、受欢迎、重视传统、怕被误解"},
+  "ISTP": {name:"鉴赏家", desc:"冷静、擅长动手、逻辑清晰，危机中的解决者。", traits:"冷静、动手能力强、独立、随性、沉默"},
+  "ISFP": {name:"冒险家", desc:"温柔、艺术细胞、随性、活在当下。", traits:"艺术感、温和、灵活、随性、回避冲突"},
+  "ESTP": {name:"企业家", desc:"行动派、反应快、擅长应变，享受刺激和当下。", traits:"大胆、实际、社交能力强、冲动、注意力短"},
+  "ESFP": {name:"表演者", desc:"热情开朗、热爱生活、天生的娱乐家。", traits:"活泼、亲和力、享受当下、即兴、害怕孤独"},
+};
+
+// === 初始化 ===
+let current = 0;
+let answers = {E:0, I:0, S:0, N:0, T:0, F:0, J:0, P:0};
+const total = questions.length;
+
+const questionsDiv = document.getElementById('questions');
+const progressBar = document.getElementById('progress');
+
+// 生成所有问题
+questions.forEach((q, i) => {
+  const div = document.createElement('div');
+  div.className = 'question';
+  if(i===0) div.classList.add('active');
+  div.innerHTML = `
+    <div class="q-text"><strong>第 ${i+1} 题 / ${total}</strong><br>${q.q}</div>
+    <div class="options">
+      <div class="option" data-value="${q.a}">${q.a}（更符合你）</div>
+      <div class="option" data-value="${q.b}">${q.b}（更符合你）</div>
+    </div>
+    <button class="btn" onclick="nextQuestion()">下一题</button>
+  `;
+  questionsDiv.appendChild(div);
+});
+
+const optionClick = (e) => {
+  if(!e.target.classList.contains('option')) return;
+  const questionDiv = e.target.closest('.question');
+  questionDiv.querySelectorAll('.option').forEach(opt => opt.classList.remove('selected'));
+  e.target.classList.add('selected');
+  
+  // 计算分数
+  const selectedText = e.target.getAttribute('data-value');
+  const q = questions[current];
+  const isA = selectedText === q.a;
+  
+  if(q.dim === "EI") answers[isA ? 'E' : 'I']++;
+  if(q.dim === "SN") answers[isA ? 'S' : 'N']++;
+  if(q.dim === "TF") answers[isA ? 'T' : 'F']++;
+  if(q.dim === "JP") answers[isA ? 'J' : 'P']++;
+};
+
+questionsDiv.addEventListener('click', optionClick);
+
+function nextQuestion() {
+  // 检查是否已选
+  const currentQuestion = document.querySelectorAll('.question')[current];
+  const selected = currentQuestion.querySelector('.option.selected');
+  if(!selected) {
+    alert("请先选择一个选项哦～");
+    return;
+  }
+  
+  current++;
+  if(current >= total) {
+    showResult();
+    return;
+  }
+  
+  // 切换问题
+  document.querySelectorAll('.question').forEach((q,i) => {
+    q.classList.toggle('active', i===current);
+  });
+  
+  // 更新进度条
+  progressBar.style.width = (current / total * 100) + '%';
+  window.scrollTo(0,0);
+}
+
+function showResult() {
+  // 计算最终类型
+  const type = 
+    (answers.E > answers.I ? 'E' : 'I') +
+    (answers.S > answers.N ? 'S' : 'N') +
+    (answers.T > answers.F ? 'T' : 'F') +
+    (answers.J > answers.P ? 'J' : 'P');
+  
+  const info = types[type];
+  document.getElementById('mbti-type').textContent = type + " - " + info.name;
+  document.getElementById('mbti-desc').textContent = info.desc;
+  document.getElementById('mbti-traits').innerHTML = "<strong>核心特质：</strong>" + info.traits;
+  
+  document.getElementById('questions').style.display = 'none';
+  document.getElementById('result').style.display = 'block';
+  progressBar.style.width = '100%';
+}
+
+// 进入页面直接滚动到顶部
+window.onload = () => window.scrollTo(0,0);
+</script>
+<footer>纯前端 MBTI 测试，仅供娱乐参考 ｜ Grok 制作</footer>
+</body>
+</html>
